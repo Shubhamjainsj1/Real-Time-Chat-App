@@ -143,8 +143,17 @@
 
         // Join room function
         function joinRoom() {
-            const username = document.getElementById('username').value.trim();
-            const room = document.getElementById('room').value.trim();
+            const usernameInput = document.getElementById('username');
+            const roomInput = document.getElementById('room');
+            
+            // Check if elements exist
+            if (!usernameInput || !roomInput) {
+                console.error('Username or room input elements not found');
+                return;
+            }
+            
+            const username = usernameInput.value.trim();
+            const room = roomInput.value.trim();
             
             if (!username || !room) {
                 alert('Please enter both username and room name');
@@ -157,10 +166,16 @@
             socket.emit('join_room', room);
             
             // Show message input
-            document.getElementById('messageInputContainer').style.display = 'flex';
+            const messageContainer = document.getElementById('messageInputContainer');
+            if (messageContainer) {
+                messageContainer.style.display = 'flex';
+            }
             
             // Clear chat container
-            document.getElementById('chatContainer').innerHTML = '';
+            const chatContainer = document.getElementById('chatContainer');
+            if (chatContainer) {
+                chatContainer.innerHTML = '';
+            }
             
             console.log(`Joined room: ${room} as ${username}`);
         }
@@ -168,6 +183,13 @@
         // Send message function
         function sendMessage() {
             const messageInput = document.getElementById('messageInput');
+            
+            // Check if messageInput exists
+            if (!messageInput) {
+                console.error('Message input element not found');
+                return;
+            }
+            
             const message = messageInput.value.trim();
             
             if (!message || !currentRoom || !currentUser) return;
