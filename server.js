@@ -224,8 +224,16 @@ process.on('SIGTERM', () => {
   server.close(() => {
     console.log('Server closed');
     mongoose.connection.close();
-    redisClient.quit();
-    subscriber.quit();
+    try {
+      redisClient.quit();
+    } catch (error) {
+      console.log('Redis client already closed');
+    }
+    try {
+      if (subscriber) subscriber.quit();
+    } catch (error) {
+      console.log('Redis subscriber already closed');
+    }
     process.exit(0);
   });
 });
@@ -235,8 +243,16 @@ process.on('SIGINT', () => {
   server.close(() => {
     console.log('Server closed');
     mongoose.connection.close();
-    redisClient.quit();
-    subscriber.quit();
+    try {
+      redisClient.quit();
+    } catch (error) {
+      console.log('Redis client already closed');
+    }
+    try {
+      if (subscriber) subscriber.quit();
+    } catch (error) {
+      console.log('Redis subscriber already closed');
+    }
     process.exit(0);
   });
 });
