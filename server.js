@@ -95,69 +95,54 @@ io.on('connection', (socket) => {
   // Handle new message
   socket.on('send_message', async (data) => {
     console.log('Received message:', data);
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
     
     try {
-      // Check if MongoDB is connected
-      if (mongoose.connection.readyState !== 1) {
-        console.log('MongoDB not connected, saving message in memory only');
-        // Emit message without saving to database
-        io.to(data.room).emit('receive_message', {
-          sender: data.sender,
-          content: data.content,
-          room: data.room,
-          timestamp: new Date()
-        });
-        console.log(`Message sent in room ${data.room}: ${data.content} (memory only)`);
-        return;
-      }
-      
-      // Save message to MongoDB
-      const newMessage = new Message({
-        sender: data.sender,
-        content: data.content,
-        room: data.room
-      });
-      
-      await newMessage.save();
-      console.log('Message saved to MongoDB successfully');
-      
-      // Publish message to Redis for other server instances (optional)
-      try {
-        await redisClient.publish('chat_message', JSON.stringify({
-          sender: data.sender,
-          content: data.content,
-          room: data.room,
-          timestamp: newMessage.timestamp
-        }));
-      } catch (redisError) {
-        console.log('Redis not available, continuing without pub/sub');
-      }
-      
-      // Emit to all clients in the room
-      io.to(data.room).emit('receive_message', {
+      // Always try to send message first (real-time communication)
+      const messageData = {
         sender: data.sender,
         content: data.content,
         room: data.room,
-        timestamp: newMessage.timestamp
-      });
+        timestamp: new Date()
+      };
       
+      // Emit message immediately for real-time communication
+      io.to(data.room).emit('receive_message', messageData);
       console.log(`Message sent in room ${data.room}: ${data.content}`);
-    } catch (error) {
-      console.error('Error saving message:', error);
       
-      // Try to send message without database if MongoDB fails
-      try {
-        io.to(data.room).emit('receive_message', {
-          sender: data.sender,
-          content: data.content,
-          room: data.room,
-          timestamp: new Date()
-        });
-        console.log(`Message sent without database: ${data.content}`);
-      } catch (emitError) {
-        console.error('Failed to emit message:', emitError);
-        socket.emit('error', 'Failed to send message');
+      // Then try to save to database (optional)
+      if (mongoose.connection.readyState === 1) {
+        try {
+          const newMessage = new Message({
+            sender: data.sender,
+            content: data.content,
+            room: data.room
+          });
+          
+          await newMessage.save();
+          console.log('Message saved to MongoDB successfully');
+          
+          // Publish message to Redis for other server instances (optional)
+          try {
+            await redisClient.publish('chat_message', JSON.stringify({
+              sender: data.sender,
+              content: data.content,
+              room: data.room,
+              timestamp: newMessage.timestamp
+            }));
+          } catch (redisError) {
+            console.log('Redis not available, continuing without pub/sub');
+          }
+        } catch (dbError) {
+          console.error('Database save failed, but message was sent:', dbError);
+        }
+      } else {
+        console.log('MongoDB not connected, message sent without persistence');
       }
+    } catch (error) {
+      console.error('Critical error in send_message:', error);
+      // Don't emit error to client - just log it
+      console.log('Message sending failed, but not showing error to user');
     }
   });
 
