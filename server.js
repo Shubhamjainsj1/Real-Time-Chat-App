@@ -97,13 +97,17 @@ io.on('connection', (socket) => {
       
       await newMessage.save();
       
-      // Publish message to Redis for other server instances
-      await redisClient.publish('chat_message', JSON.stringify({
-        sender: data.sender,
-        content: data.content,
-        room: data.room,
-        timestamp: newMessage.timestamp
-      }));
+      // Publish message to Redis for other server instances (optional)
+      try {
+        await redisClient.publish('chat_message', JSON.stringify({
+          sender: data.sender,
+          content: data.content,
+          room: data.room,
+          timestamp: newMessage.timestamp
+        }));
+      } catch (redisError) {
+        console.log('Redis not available, continuing without pub/sub');
+      }
       
       // Emit to all clients in the room
       io.to(data.room).emit('receive_message', {
@@ -142,20 +146,29 @@ io.on('connection', (socket) => {
   });
 });
 
-// Redis subscription for cross-server communication
-const subscriber = redis.createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
-});
+// Redis subscription for cross-server communication (optional)
+let subscriber;
+try {
+  subscriber = redis.createClient({
+    url: process.env.REDIS_URL || 'redis://localhost:6379'
+  });
 
-subscriber.subscribe('chat_message', (message) => {
-  try {
-    const messageData = JSON.parse(message);
-    // Broadcast to all connected clients in the room
-    io.to(messageData.room).emit('receive_message', messageData);
-  } catch (error) {
-    console.error('Error processing Redis message:', error);
-  }
-});
+  subscriber.subscribe('chat_message', (message) => {
+    try {
+      const messageData = JSON.parse(message);
+      // Broadcast to all connected clients in the room
+      io.to(messageData.room).emit('receive_message', messageData);
+    } catch (error) {
+      console.error('Error processing Redis message:', error);
+    }
+  });
+
+  subscriber.on('error', (err) => {
+    console.log('Redis subscriber error (optional):', err.message);
+  });
+} catch (error) {
+  console.log('Redis subscriber not available, continuing without cross-server communication');
+}
 
 // API Routes
 app.get('/api/messages/:room', async (req, res) => {
