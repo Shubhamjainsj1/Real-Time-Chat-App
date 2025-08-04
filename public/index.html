@@ -278,7 +278,18 @@
         // Error handling
         socket.on('error', (error) => {
             console.error('Socket error:', error);
-            alert('Error: ' + error);
+            // Show error in chat instead of alert
+            const chatContainer = document.getElementById('chatContainer');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message received';
+            errorDiv.style.backgroundColor = '#ffebee';
+            errorDiv.style.color = '#c62828';
+            errorDiv.innerHTML = `
+                <div class="message-info">System - ${new Date().toLocaleTimeString()}</div>
+                <div>⚠️ Error: ${error}</div>
+            `;
+            chatContainer.appendChild(errorDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         });
     </script>
 </body>

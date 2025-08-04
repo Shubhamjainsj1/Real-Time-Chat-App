@@ -78,16 +78,39 @@ io.on('connection', (socket) => {
     
     // Send room history
     try {
-      const messages = await Message.find({ room }).sort({ timestamp: 1 }).limit(50);
-      socket.emit('room_history', messages);
+      if (mongoose.connection.readyState === 1) {
+        const messages = await Message.find({ room }).sort({ timestamp: 1 }).limit(50);
+        socket.emit('room_history', messages);
+        console.log(`Sent ${messages.length} messages from room history`);
+      } else {
+        console.log('MongoDB not connected, sending empty room history');
+        socket.emit('room_history', []);
+      }
     } catch (error) {
       console.error('Error fetching room history:', error);
+      socket.emit('room_history', []);
     }
   });
 
   // Handle new message
   socket.on('send_message', async (data) => {
+    console.log('Received message:', data);
+    
     try {
+      // Check if MongoDB is connected
+      if (mongoose.connection.readyState !== 1) {
+        console.log('MongoDB not connected, saving message in memory only');
+        // Emit message without saving to database
+        io.to(data.room).emit('receive_message', {
+          sender: data.sender,
+          content: data.content,
+          room: data.room,
+          timestamp: new Date()
+        });
+        console.log(`Message sent in room ${data.room}: ${data.content} (memory only)`);
+        return;
+      }
+      
       // Save message to MongoDB
       const newMessage = new Message({
         sender: data.sender,
@@ -96,6 +119,7 @@ io.on('connection', (socket) => {
       });
       
       await newMessage.save();
+      console.log('Message saved to MongoDB successfully');
       
       // Publish message to Redis for other server instances (optional)
       try {
@@ -120,7 +144,20 @@ io.on('connection', (socket) => {
       console.log(`Message sent in room ${data.room}: ${data.content}`);
     } catch (error) {
       console.error('Error saving message:', error);
-      socket.emit('error', 'Failed to send message');
+      
+      // Try to send message without database if MongoDB fails
+      try {
+        io.to(data.room).emit('receive_message', {
+          sender: data.sender,
+          content: data.content,
+          room: data.room,
+          timestamp: new Date()
+        });
+        console.log(`Message sent without database: ${data.content}`);
+      } catch (emitError) {
+        console.error('Failed to emit message:', emitError);
+        socket.emit('error', 'Failed to send message');
+      }
     }
   });
 
