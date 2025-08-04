@@ -117,7 +117,7 @@
             <button onclick="joinRoom()">Join Room</button>
         </div>
         
-        <div class="input-container" id="messageInput" style="display: none;">
+        <div class="input-container" id="messageInputContainer" style="display: none;">
             <input type="text" id="messageInput" placeholder="Type your message..." onkeypress="handleKeyPress(event)">
             <button onclick="sendMessage()">Send</button>
         </div>
@@ -157,7 +157,7 @@
             socket.emit('join_room', room);
             
             // Show message input
-            document.getElementById('messageInput').style.display = 'flex';
+            document.getElementById('messageInputContainer').style.display = 'flex';
             
             // Clear chat container
             document.getElementById('chatContainer').innerHTML = '';
