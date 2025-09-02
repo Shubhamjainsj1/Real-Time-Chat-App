@@ -37,8 +37,8 @@ npm install
 3. Set up environment variables (optional):
 ```bash
 # Create a .env file with the following variables:
-MONGODB_URI=mongodb://localhost:27017/chat_app
-REDIS_URL=redis://localhost:6379
+MONGODB_URI
+REDIS_URL
 PORT=3000
 ```
 
